@@ -1,32 +1,36 @@
 import express from "express";
-import 'dotenv/config';
-import cors from 'cors';
+import "dotenv/config";
+import cors from "cors";
 import connectDB from "./config/db.js";
-import authRouter from './routes/authRoute.js'
-import mediaRouter from './routes/mediaRoute.js'
+import authRouter from "./routes/authRoute.js";
+import mediaRouter from "./routes/mediaRoute.js";
 import cookieParser from "cookie-parser";
 
-
 const app = express();
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
 
-//db connection
+// db connection
 connectDB();
 
-const allowedOrigins = ['http://localhost:5173']
+const allowedOrigins = ["http://localhost:5173"];
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({ origin: allowedOrigins,
-    credentials : true
-}));
+app.use(
+    cors({
+        origin: allowedOrigins,
+        credentials: true,
+    })
+);
 
 app.use("/auth", authRouter);
 app.use("/media", mediaRouter);
 
 
+if (process.env.NODE_ENV !== "test") {
+    app.listen(PORT, () => {
+        console.log(`server is started at ${PORT}...`);
+    });
+}
 
-app.listen(PORT, () => {
-    console.log(`server is started at ${PORT}...`)
-})
-
+export default app;

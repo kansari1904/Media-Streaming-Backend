@@ -2,6 +2,7 @@ import mediaAssetModel from "../models/mediaAssetModel.js"
 import mediaViewModel from "../models/mediaViewModel.js"
 import jwt from 'jsonwebtoken'
 import mongoose from "mongoose";
+import redis from "../config/redis.js";
 
 
 export const addMedia = async (req, res) => {
@@ -51,16 +52,25 @@ export const logView = async (req, res) => {
             viewed_by_ip: ip,
         });
 
+        await redis.del(`analytics:${id}`);
+
         res.status(201).json({ message: "View logged successfully" });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 };
 
-
+const ANALYTICS_TTL = 300;
 export const getAnalytics = async (req, res) => {
     try {
         const { id } = req.params;
+
+        // cache
+        const cacheKey = `analytics:${id}`;
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+            return res.json(JSON.parse(cached));
+        }
 
         const media = await mediaAssetModel.findById(id);
         if (!media) {
@@ -94,11 +104,16 @@ export const getAnalytics = async (req, res) => {
             viewsPerDay[record._id.day] += record.count;
         });
 
-        res.json({
+        const response = {
             total_views: totalViews,
             unique_ips: uniqueIps.size,
             views_per_day: viewsPerDay,
-        });
+        };
+ 
+        // save cache
+        await redis.set(cacheKey, JSON.stringify(response), "EX", ANALYTICS_TTL);
+
+        res.json(response);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
